@@ -3,12 +3,14 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate glutin_window;
 
+use piston::{Button, ButtonEvent, ButtonState, Key};
 use piston::window::WindowSettings;
 use piston::event_loop::{EventSettings, EventLoop, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use glutin_window::{GlutinWindow as Window, GlutinWindow};
 use opengl_graphics::{GlGraphics, OpenGL};
 
+#[derive(Clone, PartialEq)]
 pub enum Direction {
     Right,
     Left,
@@ -25,7 +27,7 @@ impl Game {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+        const GREEN: [f32; 4] = [0.0, 0.5, 0.0, 1.0];
 
         self.gl.draw(args.viewport(), |_c, gl| {
             //Clears the screen
@@ -37,6 +39,22 @@ impl Game {
 
     fn update(&mut self) {
         self.snake.update();
+    }
+
+    fn pressed(&mut self, btn: &Button) {
+        let last_direction = self.snake.dir.clone();
+
+        self.snake.dir = match btn {
+            &Button::Keyboard(Key::W)
+                if last_direction != Direction::Down => Direction::Up,
+            &Button::Keyboard(Key::S)
+                if last_direction != Direction::Up => Direction::Down,
+            &Button::Keyboard(Key::A)
+                if last_direction != Direction::Right => Direction::Left,
+            &Button::Keyboard(Key::D)
+                if last_direction != Direction::Left => Direction::Right,
+            _ => last_direction
+        };
     }
 }
 
@@ -102,6 +120,12 @@ fn main() {
 
         if let Some(_args) = e.update_args() {
             game.update();
+        }
+
+        if let Some(k) = e.button_args() {
+            if k.state == ButtonState::Press {
+                game.pressed(&k.button);
+            }
         }
     }
 }
