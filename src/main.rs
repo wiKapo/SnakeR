@@ -10,6 +10,9 @@ use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use glutin_window::{GlutinWindow as Window, GlutinWindow};
 use opengl_graphics::{GlGraphics, OpenGL};
 
+use std::collections::LinkedList;
+use std::iter::FromIterator;
+
 #[derive(Clone, PartialEq)]
 pub enum Direction {
     Right,
@@ -46,21 +49,22 @@ impl Game {
 
         self.snake.dir = match btn {
             &Button::Keyboard(Key::W)
-                if last_direction != Direction::Down => Direction::Up,
+            if last_direction != Direction::Down => Direction::Up,
             &Button::Keyboard(Key::S)
-                if last_direction != Direction::Up => Direction::Down,
+            if last_direction != Direction::Up => Direction::Down,
             &Button::Keyboard(Key::A)
-                if last_direction != Direction::Right => Direction::Left,
+            if last_direction != Direction::Right => Direction::Left,
             &Button::Keyboard(Key::D)
-                if last_direction != Direction::Left => Direction::Right,
+            if last_direction != Direction::Left => Direction::Right,
             _ => last_direction
         };
     }
 }
 
 pub struct Snake {
-    pos_x: i32,
-    pos_y: i32,
+    // pos_x: i32,
+    // pos_y: i32,
+    body: LinkedList<(i32, i32)>,
     dir: Direction,
 }
 
@@ -72,25 +76,36 @@ impl Snake {
 
         const SNAKE_SIZE: i32 = 20;
 
-        let square = rectangle::square(
-            (self.pos_x * SNAKE_SIZE) as f64,
-            (self.pos_y * SNAKE_SIZE) as f64,
-            SNAKE_SIZE as f64);
+        let squares: Vec<types::Rectangle> = self.body
+            .iter()
+            .map(|&(x, y)| {
+                rectangle::square(
+                    (x * SNAKE_SIZE) as f64,
+                    (y * SNAKE_SIZE) as f64,
+                    SNAKE_SIZE as f64)
+            }).collect();
+
 
         gl.draw(args.viewport(), |c, gl| {
             let transform = c.transform;
 
-            rectangle(RED, square, transform, gl);
+            squares.into_iter()
+                .for_each(|square| rectangle(RED, square, transform, gl));
         });
     }
 
     fn update(&mut self) {
+        let mut new_head = (*self.body.front().expect("Snake has no body")).clone();
+
         match self.dir {
-            Direction::Right => self.pos_x += 1,
-            Direction::Left => self.pos_x -= 1,
-            Direction::Down => self.pos_y += 1,
-            Direction::Up => self.pos_y -= 1,
+            Direction::Right => new_head.0 += 1,
+            Direction::Left => new_head.0 -= 1,
+            Direction::Down => new_head.1 += 1,
+            Direction::Up => new_head.1 -= 1,
         }
+
+        self.body.push_front(new_head);
+        self.body.pop_back().unwrap();
     }
 }
 
@@ -109,7 +124,10 @@ fn main() {
         gl: GlGraphics::new(opengl),
         //GRID 30x20
         //snake MAX -> pos_x: 29, pos_y: 19
-        snake: Snake { pos_x: 0, pos_y: 0, dir: Direction::Right },
+        snake: Snake {
+            body: LinkedList::from_iter((vec![(0, 0), (0, 1)]).into_iter()),
+            dir: Direction::Right,
+        },
     };
 
     let mut events = Events::new(EventSettings::new()).ups(8);
